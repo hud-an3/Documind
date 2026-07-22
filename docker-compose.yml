@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./faiss_index:/app/faiss_index
+      - ./chroma_db:/app/chroma_db
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file: .env
+    depends_on:
+      - api
+    environment:
+      - API_URL=http://api:8000
+    command: streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0
