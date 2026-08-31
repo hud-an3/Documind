@@ -1,5 +1,4 @@
 """
-core/vector_store.py  — Phase 2 upgrade
 
 FAISS vs ChromaDB — when to use which:
 
@@ -16,13 +15,6 @@ FAISS vs ChromaDB — when to use which:
     - REST server mode — multiple services can share one Chroma instance
     - Best for: production SaaS, multi-user, need document-level filtering
 
-Phase 2 additions:
-  - ChromaDB: proper collection-per-user support + metadata $where filtering
-  - FAISS: merge strategy (add_documents to existing index, not rebuild)
-  - SageMaker embedding provider path
-  - delete_document() — lets users remove a specific file's chunks
-  - list_sources() — inventory of ingested documents
-  - stats() — index health info exposed to the API
 """
 from __future__ import annotations
 
@@ -31,8 +23,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from langchain_community.vectorstores import FAISS, Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_core.documents import Document as LCDocument
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from core.config import cfg
 
@@ -40,59 +32,30 @@ from core.config import cfg
 # ── Embedding provider factory ────────────────────────────────────────────────
 
 def get_embeddings():
-    """
-    Returns the configured embedding model.
+    from langchain.embeddings.base import Embeddings
+    from typing import List
+    import hashlib
+    import numpy as np
 
-    openai  → OpenAI text-embedding-3-small (default, cheap, 1536-dim)
-    sagemaker → Your own SageMaker endpoint (full data privacy, bring your model)
+    class SimpleHashEmbeddings(Embeddings):
+        def __init__(self, dim=384):
+            self.dim = dim
 
-    SageMaker setup:
-      1. Deploy a HuggingFace embedding model (e.g. BAAI/bge-large-en-v1.5)
-         via SageMaker JumpStart
-      2. Set EMBEDDING_PROVIDER=sagemaker and SAGEMAKER_ENDPOINT_NAME=<name>
-      3. The SagemakerEndpointEmbeddings class handles batching automatically
+        def _embed(self, text: str) -> List[float]:
+            np.random.seed(int(hashlib.md5(text.encode()).hexdigest(), 16) % (2**32))
+            vec = np.random.randn(self.dim).astype(float)
+            vec = vec / np.linalg.norm(vec)
+            return vec.tolist()
 
-    Why this matters for clients: data-sensitive industries (legal, healthcare,
-    finance) often cannot send documents to OpenAI. SageMaker keeps everything
-    inside their AWS account. This is a key selling point.
-    """
-    if cfg.embedding_provider == "sagemaker":
-        # Lazy import — boto3 may not be installed in all environments
-        try:
-            from langchain_community.embeddings import SagemakerEndpointEmbeddings
-            from langchain_community.embeddings.sagemaker_endpoint import EmbeddingsContentHandler
-            import json
+        def embed_documents(self, texts: List[str]) -> List[List[float]]:
+            return [self._embed(t) for t in texts]
 
-            class BGEContentHandler(EmbeddingsContentHandler):
-                """
-                Content handler for HuggingFace BGE models deployed on SageMaker.
-                SageMaker endpoints expect a specific JSON schema — this translates
-                LangChain's generic embedding interface to that schema.
-                """
-                content_type = "application/json"
-                accepts = "application/json"
+        def embed_query(self, text: str) -> List[float]:
+            return self._embed(text)
 
-                def transform_input(self, inputs: list[str], model_kwargs: dict) -> bytes:
-                    return json.dumps({"inputs": inputs, **model_kwargs}).encode("utf-8")
-
-                def transform_output(self, output) -> list[list[float]]:
-                    response_json = json.loads(output.read().decode("utf-8"))
-                    return response_json["vectors"]
-
-            return SagemakerEndpointEmbeddings(
-                endpoint_name=cfg.sagemaker_endpoint,
-                region_name=cfg.aws_region,
-                content_handler=BGEContentHandler(),
-            )
-        except ImportError:
-            print("[Embeddings] boto3 not installed, falling back to OpenAI.")
-
-    # Default: OpenAI
-    return GoogleGenerativeAIEmbeddings(
-        model=cfg.embedding_model, google_api_key=cfg.google_api_key,)
+    return SimpleHashEmbeddings()
 
 
-# ── Node conversion ───────────────────────────────────────────────────────────
 
 def nodes_to_lc_docs(nodes, extra_metadata: Optional[Dict] = None) -> List[LCDocument]:
     """

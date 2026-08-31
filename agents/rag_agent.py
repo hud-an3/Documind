@@ -1,34 +1,9 @@
-"""
-agents/rag_agent.py  — Phase 4 upgrade
-
-Production-ready conversational RAG agent with:
-  - Streaming support (token-by-token via callbacks)
-  - Source-scoped queries ("only search contract.pdf")
-  - Multi-document mode (search across all ingested docs)
-  - Prompt template with explicit citation instructions
-  - Confidence scoring on retrieved chunks
-  - Session isolation (each session_id gets its own memory)
-  - Tool-extensible architecture (add calculator, web search, SQL, etc.)
-
-What makes this "agentic" vs a basic RAG pipeline:
-
-  Basic RAG: query → retrieve chunks → stuff into prompt → LLM answers
-  
-  Agentic RAG:
-    - Memory: agent recalls previous turns in the same session
-    - Tool use: agent can call external tools mid-reasoning
-      (e.g. "this contract mentions a formula, let me calculate it")
-    - Planning: agent can decide whether to retrieve more context
-    - Self-critique: can be prompted to verify its own answer against sources
-
-  This implementation uses ConversationalRetrievalChain as the backbone
-  and is architected so tools can be added without rewriting anything.
-"""
 from __future__ import annotations
 
 import uuid
 from typing import Any, Dict, Iterator, List, Optional
 
+from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferWindowMemory
@@ -183,17 +158,18 @@ class DocuMindAgent:
         """Build a chain for a specific session + configuration."""
         callbacks = [stream_handler] if (streaming and stream_handler) else None
 
-        llm = ChatGoogleGenerativeAI(
+        llm = ChatGroq(
             model=cfg.llm_model,
             temperature=cfg.llm_temperature,
-            google_api_key=cfg.google_api_key,
+            groq_api_key=cfg.groq_api_key,
+            callbacks=callbacks,
 )
         # Non-streaming LLM for the condense-question step
         # (we don't want to stream the internal rephrasing, only the final answer)
-        condense_llm = ChatOpenAI(
+        condense_llm = ChatGroq(
             model=cfg.llm_model,
             temperature=0,
-            openai_api_key=cfg.openai_api_key,
+            groq_api_key=cfg.groq_api_key,
         )
 
         retriever = self.vsm.get_retriever(filter_source=source_filter)
