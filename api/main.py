@@ -1,26 +1,4 @@
-"""
-api/main.py  — Phase 4 (production FastAPI backend)
 
-Endpoints:
-  POST   /ingest              upload + process a document or image
-  POST   /ingest/url          ingest a web URL
-  POST   /query               standard Q&A (full response)
-  GET    /query/stream        server-sent events streaming Q&A
-  DELETE /session/{id}        clear conversation memory
-  DELETE /document/{name}     remove a document from the vector store
-  GET    /sources             list all ingested documents
-  GET    /stats               vector store health info
-  GET    /health              uptime check
-
-Production considerations baked in:
-  - File size validation (MAX_UPLOAD_MB)
-  - Duplicate detection via file hash
-  - Per-session memory isolation
-  - CORS configured via env var
-  - Lifespan context manager (proper startup/shutdown)
-  - Background ingestion task (don't block the HTTP response)
-  - Structured JSON logging
-"""
 from __future__ import annotations
 
 import asyncio
