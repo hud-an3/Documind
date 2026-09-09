@@ -34,7 +34,8 @@ Documents (PDF / images / URLs)
 ```
 <img width="3833" height="1817" alt="image" src="https://github.com/user-attachments/assets/c5b69087-5795-428f-b3b7-1fa3e47b0fbf" />
 
-<img width="841" height="1380" alt="image" src="https://github.com/user-attachments/assets/db7626b4-f336-4c46-a6e5-4a273b85cac2" />
+<img width="841" height="1052" alt="648629522-db7626b4-f336-4c46-a6e5-4a273b85cac2" src="https://github.com/user-attachments/assets/0202adcd-ed28-4938-b174-0e501fdaecc1" />
+
 
 
 
