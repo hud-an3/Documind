@@ -1,21 +1,4 @@
-"""
-ingestion/document_loader.py  — Phase 3 upgrade
 
-Unified ingestion pipeline for ALL source types:
-  - PDF / DOCX / TXT / MD  (via LlamaIndex SimpleDirectoryReader)
-  - Images (JPG, PNG, etc.) (via vision_loader.py — Rekognition / GCP / Mock)
-  - URLs                    (crawl → markdown → chunk)
-
-The key design principle: every source type produces the same output —
-a list of LlamaIndex TextNodes ready for embedding. Downstream code
-(vector store, agent) never needs to know how content was ingested.
-
-Phase 3 adds:
-  - Image ingestion path wired into load_file() / load_directory()
-  - URL ingestion (crawl a web page → extract text → chunk)
-  - Metadata enrichment: ingestion_method, word_count, file_type
-  - ingest_report() — summary dict for the API response
-"""
 from __future__ import annotations
 
 import hashlib
@@ -36,15 +19,7 @@ DOCUMENT_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".html", ".csv"}
 
 
 class DocumentLoader:
-    """
-    Single entry point for all ingestion.
-
-    load_file(path)       → handles PDFs, images, text files automatically
-    load_directory(path)  → recursively loads a folder of mixed file types
-    load_url(url)         → crawls a web page and ingests its text content
-    chunk_documents(docs) → splits Documents into indexable TextNodes
-    load_and_chunk(path)  → convenience: load_file + chunk_documents in one call
-    """
+ 
 
     def __init__(self):
         self.splitter = SentenceSplitter(
@@ -146,7 +121,6 @@ class DocumentLoader:
     def load_url(self, url: str) -> List[Document]:
         """
         Crawl a URL, extract main text content, return as a Document.
-        Requires: pip install beautifulsoup4 requests
         """
         try:
             import requests
@@ -185,12 +159,6 @@ class DocumentLoader:
     def chunk_documents(self, documents: List[Document]) -> List[TextNode]:
         """
         Split Documents into TextNodes (chunks) using SentenceSplitter.
-
-        Why SentenceSplitter over naive character splits:
-        - Tries to break at sentence boundaries (. ! ?)
-        - chunk_overlap repeats the last N tokens in the next chunk, so
-          context that straddles a boundary isn't lost
-        - Preserves all metadata from the parent Document in every node
         """
         nodes = self.splitter.get_nodes_from_documents(documents)
         print(
