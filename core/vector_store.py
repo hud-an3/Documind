@@ -1,21 +1,4 @@
-"""
 
-FAISS vs ChromaDB — when to use which:
-
-  FAISS
-    - Pure in-memory (loaded from disk on startup, saved after writes)
-    - Approximate nearest neighbour via IVF / HNSW — extremely fast at scale
-    - No built-in metadata filtering — you filter after retrieval in Python
-    - Best for: single-user apps, prototypes, corpora under ~5M vectors
-
-  ChromaDB
-    - SQLite-backed persistence — survives restarts, no re-embedding on boot
-    - Native metadata filtering ($where clauses) — filter by source, date, tag
-    - Supports multi-tenancy via collections — one collection per user/client
-    - REST server mode — multiple services can share one Chroma instance
-    - Best for: production SaaS, multi-user, need document-level filtering
-
-"""
 from __future__ import annotations
 
 import json
@@ -90,26 +73,7 @@ def _faiss_save(store: FAISS, path: str):
 
 # ── VectorStoreManager ────────────────────────────────────────────────────────
 
-class VectorStoreManager:
-    """
-    Unified interface over FAISS and ChromaDB.
-
-    Key design decisions (explain these in interviews):
-
-    1. Lazy loading — the store is only loaded from disk on first use,
-       so app startup is fast even with large indexes.
-
-    2. Additive ingestion — calling ingest() twice merges docs into the
-       existing index rather than rebuilding it from scratch.
-
-    3. Source-level deletion — ChromaDB supports $where metadata filters,
-       so we can delete all chunks for a specific filename. FAISS doesn't
-       support deletion natively, so we rebuild the index minus those docs.
-
-    4. Multi-collection (Chroma) — each collection_name is isolated.
-       In a SaaS product you'd pass collection_name=user_id so each
-       customer only searches their own documents.
-    """
+class VectorStoreManager
 
     def __init__(self, collection_name: Optional[str] = None):
         self.embeddings = get_embeddings()
@@ -168,8 +132,6 @@ class VectorStoreManager:
         Returns a LangChain retriever.
 
         filter_source (ChromaDB only) — restrict retrieval to a single document.
-        Useful when a user asks "only look in contract.pdf for this answer".
-        FAISS doesn't support this natively; you'd post-filter the results.
         """
         store = self._get_or_load()
         search_kwargs: Dict = {"k": k or cfg.top_k}
@@ -199,10 +161,6 @@ class VectorStoreManager:
         """
         Remove all chunks associated with a specific source file.
         Returns False if no index exists yet, or if the filename isn't found.
-
-        ChromaDB: uses native $where delete — efficient O(n_matching)
-        FAISS: no native delete — rebuilds index from remaining docs (expensive)
-               For large indexes, consider switching to Chroma in production.
         """
         try:
             store = self._get_or_load()
