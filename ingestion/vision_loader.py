@@ -1,34 +1,4 @@
-"""
-ingestion/vision_loader.py  — Phase 3 (complete)
 
-Full image ingestion pipeline with:
-  - AWS Rekognition  (DetectText + DetectLabels + DetectDocument)
-  - GCP Vision API   (DOCUMENT_TEXT_DETECTION — better layout preservation)
-  - MockVisionLoader (local dev without cloud credentials)
-  - VisionLoaderFactory with auto-detection and graceful fallback
-
-Why offer both Rekognition AND GCP Vision?
-
-  Rekognition DetectText:
-    - Best for sparse text: invoices, receipts, ID cards, signage
-    - Returns word-level bounding boxes (great for forms with labelled fields)
-    - Integrates with AWS Textract for structured form/table extraction
-    - Max image size: 5MB in-memory, 15MB via S3
-
-  GCP Vision DOCUMENT_TEXT_DETECTION:
-    - Best for dense text: contracts, research papers, scanned books
-    - Preserves reading order and paragraph structure better
-    - Returns a hierarchical document model (page → block → paragraph → word)
-    - Handles multi-column layouts better than Rekognition
-
-  Real-world advice for clients: use Rekognition if you're already on AWS;
-  use GCP Vision if documents are dense/multi-column; use both and compare
-  confidence scores for mission-critical pipelines.
-
-After extraction, every path produces a LlamaIndex Document, so the rest of
-the ingestion pipeline (chunking → embedding → vector store) is identical
-regardless of whether the source was a PDF or a scanned image.
-"""
 from __future__ import annotations
 
 import base64
@@ -46,10 +16,6 @@ from core.config import cfg
 # ── Base class ────────────────────────────────────────────────────────────────
 
 class BaseVisionLoader(ABC):
-    """
-    Abstract base for all vision loaders.
-    Enforcing this interface means you can swap providers in one config line.
-    """
 
     @abstractmethod
     def extract_text(self, image_path: str) -> str:
@@ -62,8 +28,7 @@ class BaseVisionLoader(ABC):
 
     def load_image_as_document(self, image_path: str, extra_metadata: Optional[Dict] = None) -> Document:
         """
-        Full pipeline: image file → OCR text → LlamaIndex Document.
-        This Document flows into the same chunker + embedder as PDFs.
+        Full pipeline: image file → OCR text → LlamaIndex Document
         """
         path = Path(image_path)
         if not path.exists():
@@ -105,15 +70,6 @@ class BaseVisionLoader(ABC):
 # ── AWS Rekognition ───────────────────────────────────────────────────────────
 
 class AWSRekognitionLoader(BaseVisionLoader):
-    """
-    AWS Rekognition text extraction.
-
-    Requires: pip install boto3
-    Config: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
-
-    Uses DetectText for general images and DetectDocumentText for documents.
-    DetectDocumentText returns lines in reading order, better for structured docs.
-    """
 
     def __init__(self):
         try:
@@ -147,7 +103,7 @@ class AWSRekognitionLoader(BaseVisionLoader):
                 "Rekognition's in-memory limit is 5MB. Use S3 source or compress the image."
             )
 
-        # DetectDocumentText is better for multi-line docs (preserves reading order)
+        # DetectDocumentText is better for multi-line docs 
         response = self._client.detect_document_text(Image={"Bytes": image_bytes})
 
         # Extract LINE blocks in order (WORD blocks give sub-word precision but are noisy)
@@ -229,7 +185,7 @@ class GCPVisionLoader(BaseVisionLoader):
             raise RuntimeError(f"GCP Vision API error: {response.error.message}")
 
         # full_text_annotation.text gives the full OCR output as a single string
-        # with paragraphs separated by newlines — ready for chunking
+  
         return response.full_text_annotation.text
 
     def extract_with_confidence(self, image_path: str) -> Tuple[str, float]:
