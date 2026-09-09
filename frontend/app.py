@@ -1,16 +1,4 @@
-"""
-frontend/app.py  — Phase 4 complete Streamlit UI
 
-Features:
-  - Multi-document management sidebar (upload, list, delete)
-  - URL ingestion
-  - Streaming chat with live token display
-  - Source citations with expandable excerpts
-  - Session management (new conversation without losing documents)
-  - Source-scoped query (ask about one specific document)
-  - Stats panel
-  - Dark/light mode compatible
-"""
 import json
 import time
 import uuid
