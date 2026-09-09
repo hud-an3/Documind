@@ -32,6 +32,7 @@ Documents (PDF / images / URLs)
        ▼
  FastAPI backend  ←→  Streamlit UI
 ```
+<img width="3833" height="1817" alt="image" src="https://github.com/user-attachments/assets/c5b69087-5795-428f-b3b7-1fa3e47b0fbf" />
 
 <img width="841" height="1380" alt="image" src="https://github.com/user-attachments/assets/db7626b4-f336-4c46-a6e5-4a273b85cac2" />
 
